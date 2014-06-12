@@ -1,6 +1,7 @@
 SERVER_PORT = 2014
 
 class Connection
+  attr_accessor :my_ip
   require 'socket'
 
   def initialize ip, s_port
@@ -45,7 +46,8 @@ class Connection
 
         # here we define t
         case input
-        when "hello\n" then session.puts @server_list.to_s
+        when "hello\n" then
+          session.puts @server_list.to_s
         when "ble\n" then session.puts "bleee\n"
         when "foo\n" then session.puts "foooo\n"
         else
