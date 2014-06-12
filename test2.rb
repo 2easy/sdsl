@@ -4,8 +4,10 @@ require_relative 'service_obj'
 
 c = Connection.new("192.168.0.3", 2014, Service.new)
 
-Thread.new do
+t1 = Thread.new do
   c.recv
-end.join
+end
 
 c.start_service_server
+
+t1.join
