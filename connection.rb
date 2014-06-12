@@ -54,6 +54,7 @@ class Connection
   end
 
   def report_service_readiness!
+    begin
     reportSession = TCPSocket.new(@master_ip, @master_rPort)
     reportSession.puts "ready at #{@my_rPort}\n"
     inp = reportSession.gets
@@ -68,6 +69,10 @@ class Connection
       return true
     else
       return false
+    end
+    rescue Exception => e
+      puts e.message
+      puts e.bactrace.inspect
     end
   end
 
@@ -106,13 +111,13 @@ class Connection
       begin
       require_relative 'credibility_tests'
       credible = true
-      p Ctests
-      p "HURA"
       for test in Ctests do
-        testSession = TCPSocket.new(@addr_ip, @port.to_i)
-        p test
+        p test, addr_ip, port.to_i
+        testSession = TCPSocket.new(addr_ip, port.to_i)
         testSession.puts(test[:request_str])
-        credible = false if testSession.gets != test[:answer]
+        answer = testSession.gets
+        p answer
+        credible = false if answer != test[:answer]
         testSession.close
       end
 
