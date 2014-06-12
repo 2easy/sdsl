@@ -5,22 +5,32 @@ class Connection
 
   require 'socket'
 
-  def initialize master_ip = nil, master_rPort = nil, my_rPort = DEFAULT_RPORT
+  def initialize master_ip = nil, master_rPort = nil, service_obj = nil, my_rPort = DEFAULT_RPORT
     @master_ip = master_ip
     @master_rPort = master_rPort
     @my_ip = local_ip
     @my_rPort = my_rPort
+    @service_obj = service_obj
     @age = Time.now.to_i
     # if there is no master or you can't connect to it - become one
     become_a_master if @master_ip.nil? or !get_server_list!
     # start service server
     @server = TCPServer.new(my_rPort.nil? ? DEFAULT_RPORT : my_rPort)
     puts "log: Started service server at #{@my_ip}:#{@my_rPort}"
+    unless @master
+      unless report_service_readiness!
+        puts "CRITICAL: not added to the network"
+        raise "Critical error, can't service"
+      end
+    end
+
+    puts "log: Service server at #{@my_ip}:#{@my_rPort} added to network!"
   end
 
   def become_a_master
     @master = true
     @master_ip = @my_ip
+    # TODO BUG doesnt work when not just starting network
     @server_list = [@my_ip]
     puts "log: Became master server!"
   end
@@ -40,10 +50,28 @@ class Connection
     end
   end
 
+  def report_service_readiness!
+    initSession = TCPSocket.new(@master_ip, @master_rPort)
+    initSession.puts "ready at #{@my_rPort}\n"
+    if  /request accepted, wait for tests/ =~ reportSession.gets
+      puts "log: request accepted, waiting for tests"
+    end
+
+    reportSession.close
+    sleep(3)
+    get_server_list!
+    if @server_list.include?(@my_ip)
+      return true
+    else
+      return false
+    end
+  end
+
   def recv
     while (session = @server.accept)
       Thread.start do
-        puts "log: Connection from #{session.peeraddr[2]} at #{session.peeraddr[3]}"
+        peeraddr = session.peeraddr[2]
+        puts "log: Connection from #{peeraddr} at #{session.peeraddr[1]}"
         input = session.gets
         puts input
 
@@ -51,20 +79,41 @@ class Connection
         case input
         when "hello\n" then
           session.puts @server_list.join(" ")
-        when "ble\n" then session.puts "bleee\n"
+        when /ready at (\d*)/ then
+          if @master
+            puts "log: Putting #{peeraddr}:#{$1} to test queue."
+            session.puts "request accepted, wait for tests\n"
+            test_credibility(peeraddr,$1)
+          end
         when "foo\n" then session.puts "foooo\n"
         else
+          # delegate call to the main code
+          p "here"
+          puts @service_obj.compute(input)
+          session.puts @service_obj.compute(input)
           session.close
         end
-
       end
     end
   end
 
-  def send ip
-  end
-
   private
+    def test_credibility addr_ip, port
+      require 'credibility_tests'
+      credible = true
+      for test in ctests do
+        testSession = TCPSocket.new(@addr_ip, @port)
+        testSession.puts(test[:request_str])
+        credible = false if testSession.gets != test[:answer]
+        testSession.close
+      end
+
+      if credible
+        # TODO thread protection
+        @server_list.push([addr_ip,port].join(":"))
+      end
+    end
+
     def local_ip
       orig = Socket.do_not_reverse_lookup
       Socket.do_not_reverse_lookup = true # turn off reverse DNS resolution temporarily
