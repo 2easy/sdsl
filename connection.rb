@@ -1,6 +1,8 @@
 SERVER_PORT = 2014
 
 class Connection
+  attr_accessor :my_ip
+
   require 'socket'
 
   def initialize ip, s_port
@@ -15,7 +17,7 @@ class Connection
 
   def become_a_master
     @master = true
-    @my_ip
+    @my_ip = local_ip
     @master_ip = @my_ip
     @server_list = [@my_ip]
     p "become master"
@@ -43,8 +45,10 @@ class Connection
         input = session.gets
         puts input
 
+        # here we define t
         case input
-        when "hello\n" then session.puts @server_list.to_s
+        when "hello\n" then
+          session.puts @server_list.to_s
         when "ble\n" then session.puts "bleee\n"
         when "foo\n" then session.puts "foooo\n"
         else
@@ -57,4 +61,16 @@ class Connection
 
   def send ip
   end
+
+  private
+    def local_ip
+      orig = Socket.do_not_reverse_lookup
+      Socket.do_not_reverse_lookup = true # turn off reverse DNS resolution temporarily
+      UDPSocket.open do |s|
+        s.connect '64.233.187.99', 1 #google
+        s.addr.last
+      end
+    ensure
+      Socket.do_not_reverse_lookup = orig
+    end
 end
