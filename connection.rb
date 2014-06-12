@@ -34,7 +34,7 @@ class Connection
     @master = true
     @master_ip = @my_ip
     # TODO BUG doesnt work when not just starting network
-    @server_list = [@my_ip]
+    @server_list = [[@my_ip,@my_rPort].join(":")]
     puts "log: Became master server!"
   end
   def master?; return @master; end
@@ -55,21 +55,17 @@ class Connection
 
   def report_service_readiness!
     begin
-    reportSession = TCPSocket.new(@master_ip, @master_rPort)
-    reportSession.puts "ready at #{@my_rPort}\n"
-    inp = reportSession.gets
-    if  /request accepted, wait for tests/ =~ inp
-      puts "log: request accepted, waiting for tests"
-    end
+      reportSession = TCPSocket.new(@master_ip, @master_rPort)
+      reportSession.puts "ready at #{@my_rPort}\n"
+      inp = reportSession.gets
+      if  /request accepted, wait for tests/ =~ inp
+        puts "log: request accepted, waiting for tests"
+      end
 
-    reportSession.close
-    sleep(3)
-    get_server_list!
-    if @server_list.include?(@my_ip)
-      return true
-    else
-      return false
-    end
+      reportSession.close
+      sleep(3)
+      get_server_list!
+      @server_list.any? {|a| @my_ip =~ a}
     rescue Exception => e
       puts e.message
       puts e.bactrace.inspect
@@ -117,7 +113,7 @@ class Connection
         testSession.puts(test[:request_str])
         answer = testSession.gets
         p answer
-        credible = false if answer != test[:answer]
+        credible = false if answer.chomp! != test[:answer]
         testSession.close
       end
 
