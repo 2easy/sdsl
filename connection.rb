@@ -48,7 +48,7 @@ class Connection
         # here we define t
         case input
         when "hello\n" then
-          session.puts @server_list.to_s
+          session.puts @server_list.join(" ")
         when "ble\n" then session.puts "bleee\n"
         when "foo\n" then session.puts "foooo\n"
         else
