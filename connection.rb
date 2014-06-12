@@ -65,7 +65,7 @@ class Connection
       reportSession.close
       sleep(3)
       get_server_list!
-      @server_list.any? {|a| @my_ip =~ a}
+      @server_list.any? {|a| a.include?(@my_ip) }
     rescue Exception => e
       puts e.message
       puts e.bactrace.inspect
