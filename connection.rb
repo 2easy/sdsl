@@ -51,9 +51,10 @@ class Connection
   end
 
   def report_service_readiness!
-    initSession = TCPSocket.new(@master_ip, @master_rPort)
-    initSession.puts "ready at #{@my_rPort}\n"
-    if  /request accepted, wait for tests/ =~ reportSession.gets
+    reportSession = TCPSocket.new(@master_ip, @master_rPort)
+    reportSession.puts "ready at #{@my_rPort}\n"
+    inp = reportSession.gets
+    if  /request accepted, wait for tests/ =~ inp
       puts "log: request accepted, waiting for tests"
     end
 
@@ -103,6 +104,7 @@ class Connection
       credible = true
       for test in ctests do
         testSession = TCPSocket.new(@addr_ip, @port)
+        p test
         testSession.puts(test[:request_str])
         credible = false if testSession.gets != test[:answer]
         testSession.close
