@@ -25,4 +25,9 @@ class Service
 end
 
 c = Connection.new("192.168.0.3", 2014, Service.new)
-c.recv
+
+Thread.new do
+  c.recv
+end.join
+
+c.start_service_server

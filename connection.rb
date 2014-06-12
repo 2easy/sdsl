@@ -14,8 +14,11 @@ class Connection
     @age = Time.now.to_i
     # if there is no master or you can't connect to it - become one
     become_a_master if @master_ip.nil? or !get_server_list!
-    # start service server
+    # bind service server
     @server = TCPServer.new(my_rPort.nil? ? DEFAULT_RPORT : my_rPort)
+  end
+
+  def start_service_server
     puts "log: Started service server at #{@my_ip}:#{@my_rPort}"
     unless @master
       unless report_service_readiness!
@@ -100,10 +103,13 @@ class Connection
 
   private
     def test_credibility addr_ip, port
-      require 'credibility_tests'
+      begin
+      require_relative 'credibility_tests'
       credible = true
-      for test in ctests do
-        testSession = TCPSocket.new(@addr_ip, @port)
+      p Ctests
+      p "HURA"
+      for test in Ctests do
+        testSession = TCPSocket.new(@addr_ip, @port.to_i)
         p test
         testSession.puts(test[:request_str])
         credible = false if testSession.gets != test[:answer]
@@ -113,6 +119,10 @@ class Connection
       if credible
         # TODO thread protection
         @server_list.push([addr_ip,port].join(":"))
+      end
+      rescue Exception => e
+        puts e.message
+        puts e.bactrace.inspect
       end
     end
 
