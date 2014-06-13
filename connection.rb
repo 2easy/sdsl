@@ -4,7 +4,6 @@ class Connection
   attr_accessor :my_ip
 
   require 'socket'
-  require 'timeout'
 
   def initialize master_ip = nil, master_rPort = nil, service_obj = nil, my_rPort = DEFAULT_RPORT
     @master_ip = master_ip
@@ -13,7 +12,6 @@ class Connection
     @my_rPort = my_rPort
     @service_obj = service_obj
     @server_list = []
-    @age = Time.now.to_i
     # if there is no master or you can't connect to it - become one
     become_a_master if @master_ip.nil? or !get_server_list!
     # bind service server
@@ -35,8 +33,6 @@ class Connection
   def become_a_master
     @master = true
     @master_ip = @my_ip
-    # TODO BUG doesnt work when not just starting network
-    @server_list = []
     puts "log: Became master server!"
   end
   def master?; return @master; end
@@ -105,23 +101,23 @@ class Connection
   def monitor
     while sleep(5+rand())
       if @master
+        ping_threads = []
         new_server_list = []
+        p @server_list
         @server_list.each do |s|
-          Thread.new do
+          ping_threads.push(Thread.new do
             begin
-              Timeout.timeout(10) do
-                puts "log: Pinging #{s}..."
-                pingSession = TCPSocket.new(*(s.split(":")))
-                pingSession.close
-                new_server_list.push(s)
-              end
-            rescue Timeout::Error
+              puts "log: Pinging #{s}..."
+              pingSession = TCPSocket.new(*(s.split(":")))
+              pingSession.close
+              new_server_list.push(s)
+            rescue Exception => e
               puts "log: #{s} is not responding - deleted from server list"
             end
-          end
+          end)
         end
+        ping_threads.each {|t| t.join}
         @server_list = new_server_list
-        p @server_list
       else
         reelect! unless get_server_list!
       end
@@ -129,9 +125,10 @@ class Connection
   end
 
   def reelect!
-    @server_list.shift
     if @server_list.size == 1
       become_a_master
+    else
+      @master_ip, @master_rPort = @server_list.shift.split(":")
     end
   end
 
