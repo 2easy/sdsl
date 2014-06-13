@@ -104,7 +104,23 @@ class Connection
 
   def monitor
     while sleep(1+rand())
-      reelect! unless get_server_list!
+      new_server_list = []
+      if @master
+        @server_list.each do |s|
+          Thread.new do
+            begin
+              pingSession = TCPSocket.new(*(s.split(":")))
+              pingSession.close
+              new_server_list.push(s)
+            rescue Errno::ETIMEDOUT
+              puts "log: #{s} is not responding - deleted from server list"
+            end
+          end
+        end
+      else
+        reelect! unless get_server_list!
+      end
+      @server_list = new_server_list
     end
   end
 
