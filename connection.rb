@@ -34,7 +34,7 @@ class Connection
     @master = true
     @master_ip = @my_ip
     # TODO BUG doesnt work when not just starting network
-    @server_list = [[@my_ip,@my_rPort].join(":")]
+    @server_list = [[@my_ip,@my_rPort].join(":")] if @server_list.empty?
     puts "log: Became master server!"
   end
   def master?; return @master; end
@@ -90,10 +90,8 @@ class Connection
             session.puts "request accepted, wait for tests\n"
             test_credibility(peeraddr,$1)
           end
-        when "foo\n" then session.puts "foooo\n"
         else
           # delegate call to the main code
-          p "here"
           puts @service_obj.compute(input)
           session.puts @service_obj.compute(input)
           session.close
@@ -104,6 +102,7 @@ class Connection
 
   def monitor
     while sleep(1+rand())
+      next if @server_list.size == 1
       if @master
         new_server_list = []
         @server_list.each do |s|
