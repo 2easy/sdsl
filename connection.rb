@@ -104,8 +104,8 @@ class Connection
 
   def monitor
     while sleep(1+rand())
-      new_server_list = []
       if @master
+        new_server_list = []
         @server_list.each do |s|
           Thread.new do
             begin
@@ -117,10 +117,10 @@ class Connection
             end
           end
         end
+        @server_list = new_server_list
       else
         reelect! unless get_server_list!
       end
-      @server_list = new_server_list
     end
   end
 
