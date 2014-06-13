@@ -11,6 +11,7 @@ class Connection
     @my_ip = local_ip
     @my_rPort = my_rPort
     @service_obj = service_obj
+    @server_list = []
     @age = Time.now.to_i
     # if there is no master or you can't connect to it - become one
     become_a_master if @master_ip.nil? or !get_server_list!
