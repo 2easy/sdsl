@@ -16,6 +16,6 @@ class Service
     return Math::sin(arg.to_i).to_s
   end
   def add arg1, arg2
-    return (arg1+arg2).to_s
+    return (arg1.to_i+arg2.to_i).to_s
   end
 end
