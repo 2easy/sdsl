@@ -127,8 +127,10 @@ class Connection
   def reelect!
     if @server_list.size == 1
       become_a_master
+      @server_list = []
     else
       @master_ip, @master_rPort = @server_list.shift.split(":")
+      @master = true if @master_ip == @my_ip
     end
   end
 
