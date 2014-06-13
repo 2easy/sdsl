@@ -62,11 +62,11 @@ class Connection
 
       reportSession.close
       sleep(3)
+      # TODO maybe that master server went down - ping it and try again (3 times then fail)
       get_server_list!
       @server_list.any? {|a| a.include?(@my_ip) }
     rescue Exception => e
       puts e.message
-      puts e.bactrace.inspect
     end
   end
 
@@ -88,7 +88,9 @@ class Connection
             session.puts "request accepted, wait for tests\n"
             test_credibility(peeraddr,$1)
           end
+          # TODO else if not master
         else
+          # TODO if master delegate to slave
           # delegate call to the main code
           puts @service_obj.compute(input)
           session.puts @service_obj.compute(input)
