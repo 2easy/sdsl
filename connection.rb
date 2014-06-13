@@ -35,7 +35,7 @@ class Connection
     @master = true
     @master_ip = @my_ip
     # TODO BUG doesnt work when not just starting network
-    @server_list = [[@my_ip,@my_rPort].join(":")] if @server_list.empty?
+    @server_list = []
     puts "log: Became master server!"
   end
   def master?; return @master; end
@@ -103,10 +103,6 @@ class Connection
 
   def monitor
     while sleep(5+rand())
-      if @server_list.size == 1
-        sleep(1)
-        next
-      end
       if @master
         new_server_list = []
         @server_list.each do |s|
