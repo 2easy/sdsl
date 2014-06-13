@@ -4,6 +4,7 @@ class Connection
   attr_accessor :my_ip
 
   require 'socket'
+  require 'timeout'
 
   def initialize master_ip = nil, master_rPort = nil, service_obj = nil, my_rPort = DEFAULT_RPORT
     @master_ip = master_ip
@@ -108,11 +109,13 @@ class Connection
         @server_list.each do |s|
           Thread.new do
             begin
-              puts "log: Pinging #{s}..."
-              pingSession = TCPSocket.new(*(s.split(":")))
-              pingSession.close
-              new_server_list.push(s)
-            rescue Errno::ETIMEDOUT
+              Timeout.timeout(10) do
+                puts "log: Pinging #{s}..."
+                pingSession = TCPSocket.new(*(s.split(":")))
+                pingSession.close
+                new_server_list.push(s)
+              end
+            rescue Timeout::Error
               puts "log: #{s} is not responding - deleted from server list"
             end
           end
