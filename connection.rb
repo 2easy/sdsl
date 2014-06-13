@@ -102,13 +102,17 @@ class Connection
   end
 
   def monitor
-    while sleep(1+rand())
-      next if @server_list.size == 1
+    while sleep(5+rand())
+      if @server_list.size == 1
+        sleep(1)
+        next
+      end
       if @master
         new_server_list = []
         @server_list.each do |s|
           Thread.new do
             begin
+              puts "log: Pinging #{s}..."
               pingSession = TCPSocket.new(*(s.split(":")))
               pingSession.close
               new_server_list.push(s)
@@ -118,6 +122,7 @@ class Connection
           end
         end
         @server_list = new_server_list
+        p @server_list
       else
         reelect! unless get_server_list!
       end
