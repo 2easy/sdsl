@@ -102,6 +102,19 @@ class Connection
     end
   end
 
+  def monitor
+    while sleep(1+rand())
+      reelect! unless get_server_list!
+    end
+  end
+
+  def reelect!
+    @server_list.shift
+    if @server_list.size == 1
+      become_a_master
+    end
+  end
+
   private
     def test_credibility addr_ip, port
       begin
