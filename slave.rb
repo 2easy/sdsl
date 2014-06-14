@@ -24,17 +24,15 @@ class Slave
   end
 
   def start_service
-    while (session = @server.accept)
-      Thread.start do
-        peeraddr = session.peeraddr[2]
+    loop do
+      Thread.start(server.accept) do |session|
         input = session.gets
+        peeraddr = session.peeraddr[2]
         puts "log: #{peeraddr}:#{session.peeraddr[1]} requesting: #{input}"
 
         if input =~ /compute (.*)/
-          puts @service_obj.compute($1)
           session.puts @service_obj.compute($1)
         else
-          p @server_list
           session.puts "Can't handle this request, ask master at #{master_ip}:#{master_rPort}"
         end
         # finalize request

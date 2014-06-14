@@ -17,11 +17,9 @@ class Master
       require_relative 'credibility_tests'
       credible = true
       for test in Ctests do
-        p test, addr_ip, port.to_i
         testSession = TCPSocket.new(addr_ip, port.to_i)
         testSession.puts("compute #{test[:request_str]}")
         answer = testSession.gets
-        p answer
         credible = false if answer.chomp! != test[:answer]
         testSession.close
       end
@@ -29,6 +27,7 @@ class Master
       if credible
         # TODO thread protection
         @server_list.push([addr_ip,port].join(":"))
+        puts "log: #{addr_ip}:#{port} passed all tests - added to server list"
       end
     rescue Exception => e
       puts e.message
@@ -37,17 +36,12 @@ class Master
   end
 
   def start_service
-    while (session = @server.accept)
-      require 'deep_clone'
-      old_session = DeepClone.clone(session)
-
-      Thread.start do
-        peeraddr = session.peeraddr[2]
-        puts "log: Connection from #{peeraddr} at #{session.peeraddr[1]}"
+    loop do
+      Thread.start(@server.accept) do |session|
         input = session.gets
-        puts input
+        peeraddr = session.peeraddr[2]
+        puts "log: #{peeraddr}:#{session.peeraddr[1]} requesting: #{input}"
 
-        # here we define the behaviour of the server
         case input
         when "hello\n" then
           session.puts @server_list.join(" ")
@@ -57,17 +51,10 @@ class Master
           test_credibility(peeraddr,$1)
         else
           delegatee_ip, delegatee_rPort = @server_list[1..-1].sample.split(":")
-          p "INDELEGATION"
-          p delegatee_ip, delegatee_rPort
-          old_session = session.clone
           delegate_session = TCPSocket.new(delegatee_ip, delegatee_rPort.to_i)
           delegate_session.puts(input)
           answer = delegate_session.gets
-          p "ANSWER IS #{answer}"
-          p old_session.peeraddr[2]
-          p old_session.peeraddr[1]
-          old_session.puts(answer)
-          p "ANSWER SENT"
+          session.puts(answer)
           session.close
         end
       end

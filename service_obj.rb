@@ -2,8 +2,6 @@ class Service
   @@computable = ["sin", "add"]
   def compute str
     if /\A(\w*)\((.*)\)/ =~ str
-      p $1,$2
-      p @@computable.include?($1)
       if @@computable.include?($1)
         return self.send $1.to_sym, *($2.split(","))
       else
