@@ -1,165 +1,86 @@
+#!/usr/bin/env ruby
+
+require_relative 'master'
+require_relative 'slave'
+
 DEFAULT_RPORT = 2014
+class Mastered < Exception; end
 
 class Connection
-  attr_accessor :my_ip
+  attr_accessor :local_ip
 
   require 'socket'
 
-  def initialize master_ip = nil, master_rPort = nil, service_obj = nil, my_rPort = DEFAULT_RPORT
-    @master_ip = master_ip
-    @master_rPort = master_rPort
-    @my_ip = local_ip
-    @my_rPort = my_rPort
-    @service_obj = service_obj
-    @server_list = []
-    # if there is no master or you can't connect to it - become one
-    become_a_master if @master_ip.nil? or !get_server_list!
+  def initialize service_obj, m_ip = nil, m_rPort = nil, local_rPort = DEFAULT_RPORT
+    @local_ip, @local_rPort = local_ip, local_rPort
+    @service_obj     = service_obj
+    @server_list     = [[m_ip, m_rPort]]
     # bind service server
-    @server = TCPServer.new(my_rPort.nil? ? DEFAULT_RPORT : my_rPort)
+    @server = TCPServer.new(local_rPort.nil? ? DEFAULT_RPORT : local_rPort)
+    @conn_handle_obj = Slave.new(@local_ip, @local_rPort, @server, @service_obj, @server_list)
+
+    # if there is no master or you can't connect to it - become one
+    # become_the_master if master_ip.nil? or !get_server_list
   end
 
-  def start_service_server
-    puts "log: Started service server at #{@my_ip}:#{@my_rPort}"
-    unless @master
-      unless report_service_readiness!
-        puts "CRITICAL: not added to the network"
-        raise "Critical error, can't service"
-      end
-    end
-
-    puts "log: Service server at #{@my_ip}:#{@my_rPort} added to network!"
-  end
-
-  def become_a_master
-    @master = true
-    @master_ip = @my_ip
-    puts "log: Became master server!"
-  end
   def master?; return @master; end
 
-  def get_server_list!
-    begin
-      initSession = TCPSocket.new(@master_ip, @master_rPort)
-      initSession.puts "hello\n"
-      @server_list = initSession.gets.split(" ")
-      initSession.close
-      puts "log: Aquaired server list: #{@server_list.to_s}"
-      return true
-    rescue
-      puts "log: Couldn't connect to the master server!"
-      return false
-    end
-  end
-
-  def report_service_readiness!
-    begin
-      reportSession = TCPSocket.new(@master_ip, @master_rPort)
-      reportSession.puts "ready at #{@my_rPort}\n"
-      inp = reportSession.gets
-      if  /request accepted, wait for tests/ =~ inp
-        puts "log: request accepted, waiting for tests"
+  def start_service_server
+    while true
+      begin
+        join_the_network!
+        # start service server
+        Thread.abort_on_exception = true # when mastered exit and start new services
+        service_threads = [
+          Thread.new { @conn_handle_obj.start_service },
+          Thread.new { @conn_handle_obj.monitor       }
+        ].each { |t| t.join }
+      rescue Mastered
+        @conn_handle_obj = Master.new
+        service_threads.each {|t| Thread.kill(t)}
+        next
+      rescue Exception => e
+        p e.message
+        service_threads.each {|t| Thread.kill(t)}
+        exit(1)
       end
-
-      reportSession.close
-      sleep(3)
-      # TODO maybe that master server went down - ping it and try again (3 times then fail)
-      get_server_list!
-      @server_list.any? {|a| a.include?(@my_ip) }
-    rescue Exception => e
-      puts e.message
-    end
-  end
-
-  def recv
-    while (session = @server.accept)
-      Thread.start do
-        peeraddr = session.peeraddr[2]
-        puts "log: Connection from #{peeraddr} at #{session.peeraddr[1]}"
-        input = session.gets
-        puts input
-
-        # here we define the behaviour of the server
-        case input
-        when "hello\n" then
-          session.puts @server_list.join(" ")
-        when /ready at (\d*)/ then
-          if @master
-            puts "log: Putting #{peeraddr}:#{$1} to test queue."
-            session.puts "request accepted, wait for tests\n"
-            test_credibility(peeraddr,$1)
-          end
-          # TODO else if not master
-        else
-          # TODO if master delegate to slave
-          # delegate call to the main code
-          puts @service_obj.compute(input)
-          session.puts @service_obj.compute(input)
-          session.close
-        end
-      end
-    end
-  end
-
-  def monitor
-    while sleep(5+rand())
-      if @master
-        ping_threads = []
-        new_server_list = []
-        p @server_list
-        @server_list.each do |s|
-          ping_threads.push(Thread.new do
-            begin
-              puts "log: Pinging #{s}..."
-              pingSession = TCPSocket.new(*(s.split(":")))
-              pingSession.close
-              new_server_list.push(s)
-            rescue Exception => e
-              puts "log: #{s} is not responding - deleted from server list"
-            end
-          end)
-        end
-        ping_threads.each {|t| t.join}
-        @server_list = new_server_list
-      else
-        reelect! unless get_server_list!
-      end
-    end
-  end
-
-  def reelect!
-    if @server_list.size == 1
-      become_a_master
-      @server_list = []
-    else
-      @master_ip, @master_rPort = @server_list.shift.split(":")
-      @master = true if @master_ip == @my_ip
     end
   end
 
   private
-    def test_credibility addr_ip, port
+    def join_the_network!
       begin
-      require_relative 'credibility_tests'
-      credible = true
-      for test in Ctests do
-        p test, addr_ip, port.to_i
-        testSession = TCPSocket.new(addr_ip, port.to_i)
-        testSession.puts(test[:request_str])
-        answer = testSession.gets
-        p answer
-        credible = false if answer.chomp! != test[:answer]
-        testSession.close
-      end
+        raise "no master specified" if master_ip.nil?
+        initSession = TCPSocket.new(master_ip, master_rPort)
+        initSession.puts "ready at #{@local_rPort}\n"
+        res = initSession.gets
+        if  /request accepted, wait for tests/ =~ res
+          puts "log: Request accepted, waiting for tests..."
+        end
+        reportSession.close
 
-      if credible
-        # TODO thread protection
-        @server_list.push([addr_ip,port].join(":"))
-      end
+        sleep(3) # wait for entry tests
+        # TODO maybe that master server went down - ping it and try again (3 times then fail)
+        @server_list = get_server_list
+        unless server_list.any? {|a| a.include?(@local_ip) }
+          raise "error: Rejected by master - not on the server list"
+        end
       rescue Exception => e
-        puts e.message
-        puts e.bactrace.inspect
+        puts "log: Couldn't connect to the master server: #{e.message}"
+        @server_list = [[@local_ip, @local_rPort]]
+        become_the_master
+        return
       end
     end
+
+    def become_the_master
+      @master = true
+      @conn_handle_obj = Master.new(@local_ip, @local_rPort, @server, @service_obj, @server_list)
+      puts "log: Became master server!"
+    end
+
+    def master_ip; @server_list[0][0]; end
+    def master_rPort; @server_list[0][1]; end
 
     def local_ip
       orig = Socket.do_not_reverse_lookup
