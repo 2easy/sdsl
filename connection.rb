@@ -4,7 +4,7 @@ require_relative 'master'
 require_relative 'slave'
 
 DEFAULT_RPORT = 2014
-DEFAULT_RPORT = 2000
+DEFAULT_PPORT = 2000
 class Mastered < Exception; end
 
 class Connection
@@ -73,7 +73,7 @@ class Connection
       @master = true
       # if noone(or [nil, nil]) on the server list, ensure there is myself
       @server_list = [[@local_ip,@local_rPort].join(":")] if @server_list.size == 1
-      @conn_handle_obj = Master.new(@local_ip, @local_rPort, @server, @service_obj, @server_list)
+      @conn_handle_obj = Master.new(@local_ip, @local_rPort, @server, @ping_server, @service_obj, @server_list)
       puts "log: Became master server: #{msg}"
     end
 
