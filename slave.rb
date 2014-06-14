@@ -25,7 +25,7 @@ class Slave
 
   def start_service
     loop do
-      Thread.start(server.accept) do |session|
+      Thread.start(@server.accept) do |session|
         input = session.gets
         peeraddr = session.peeraddr[2]
         puts "log: #{peeraddr}:#{session.peeraddr[1]} requesting: #{input}"
