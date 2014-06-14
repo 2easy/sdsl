@@ -7,16 +7,6 @@ class Slave
     @server_list = server_list
   end
 
-  def start_service_server
-    puts "log: Started service server at #{@local_ip}:#{@local_rPort}"
-
-    unless report_service_readiness!
-      puts "CRITICAL: not added to the network"
-      raise "Critical error, can't service"
-    end
-    puts "log: Service server at #{@local_ip}:#{@local_rPort} added to network!"
-  end
-
   def get_server_list
     begin
       initSession = TCPSocket.new(master_ip, master_rPort)
@@ -40,7 +30,7 @@ class Slave
         puts "log: #{peeraddr}:#{session.peeraddr[1]} requesting: #{input}"
 
         if input =~ /compute (.*)/
-          # puts @service_obj.compute($1)
+          puts @service_obj.compute($1)
           session.puts @service_obj.compute($1)
         else
           session.puts "Can't handle this request, ask master at #{master_ip}:#{master_rPort}"

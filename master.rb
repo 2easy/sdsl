@@ -18,7 +18,7 @@ class Master
       for test in Ctests do
         p test, addr_ip, port.to_i
         testSession = TCPSocket.new(addr_ip, port.to_i)
-        testSession.puts(test[:request_str])
+        testSession.puts("compute #{test[:request_str]}")
         answer = testSession.gets
         p answer
         credible = false if answer.chomp! != test[:answer]

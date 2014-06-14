@@ -28,15 +28,16 @@ class Connection
   def start_service_server
     while true
       begin
-        join_the_network!
         # start service server
         Thread.abort_on_exception = true # when mastered exit and start new services
         service_threads = [
           Thread.new { @conn_handle_obj.start_service },
           Thread.new { @conn_handle_obj.monitor       }
-        ].each { |t| t.join }
-      rescue Mastered
-        @conn_handle_obj = Master.new
+        ]
+        join_the_network!
+        service_threads.each {|t| t.join}
+      rescue Mastered => e
+        become_the_master(e.message)
         service_threads.each {|t| Thread.kill(t)}
         next
       rescue Exception => e
@@ -50,33 +51,33 @@ class Connection
   private
     def join_the_network!
       begin
-        raise "no master specified" if master_ip.nil?
+        raise Mastered, "no master specified" if master_ip.nil?
         initSession = TCPSocket.new(master_ip, master_rPort)
         initSession.puts "ready at #{@local_rPort}\n"
         res = initSession.gets
         if  /request accepted, wait for tests/ =~ res
           puts "log: Request accepted, waiting for tests..."
         end
-        reportSession.close
+        initSession.close
 
         sleep(3) # wait for entry tests
         # TODO maybe that master server went down - ping it and try again (3 times then fail)
-        @server_list = get_server_list
-        unless server_list.any? {|a| a.include?(@local_ip) }
+        @server_list.replace(@conn_handle_obj.get_server_list)
+        unless @server_list.any? {|a| a.include?(@local_ip) }
           raise "error: Rejected by master - not on the server list"
         end
-      rescue Exception => e
-        puts "log: Couldn't connect to the master server: #{e.message}"
         @server_list = [[@local_ip, @local_rPort]]
         become_the_master
         return
       end
     end
 
-    def become_the_master
+    def become_the_master(msg)
       @master = true
+      # if noone(or [nil, nil]) on the server list, ensure there is myself
+      @server_list = [@local_ip,@local_rPort] if @server_list.size == 1
       @conn_handle_obj = Master.new(@local_ip, @local_rPort, @server, @service_obj, @server_list)
-      puts "log: Became master server!"
+      puts "log: Became master server: #{msg}"
     end
 
     def master_ip; @server_list[0][0]; end
