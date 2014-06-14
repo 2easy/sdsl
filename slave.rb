@@ -47,7 +47,7 @@ class Slave
   def master_rPort; @server_list[0].split(":")[1]; end
 
   def monitor
-    while sleep(5+rand())
+    while sleep(10+rand())
       reelect! unless get_server_list
     end
   end

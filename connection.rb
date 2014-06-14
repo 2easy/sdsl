@@ -4,6 +4,7 @@ require_relative 'master'
 require_relative 'slave'
 
 DEFAULT_RPORT = 2014
+DEFAULT_RPORT = 2000
 class Mastered < Exception; end
 
 class Connection
@@ -17,6 +18,7 @@ class Connection
     @server_list     = [[m_ip, m_rPort].join(":")]
     # bind service server
     @server = TCPServer.new(local_rPort.nil? ? DEFAULT_RPORT : local_rPort)
+    @ping_server = TCPServer.new(DEFAULT_PPORT)
     @conn_handle_obj = Slave.new(@local_ip, @local_rPort, @server, @service_obj, @server_list)
 
     # if there is no master or you can't connect to it - become one

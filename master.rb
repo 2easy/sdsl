@@ -1,8 +1,9 @@
 class Master
-  def initialize local_ip, local_rPort, server_binding, service_obj, server_list
+  def initialize local_ip, local_rPort, server_binding, pserver_binding, service_obj, server_list
     @local_ip = local_ip
     @local_rPort = local_rPort
     @server = server_binding
+    @ping_server = pserver_binding
     @service_obj = service_obj
     @server_list = server_list
   end
@@ -37,6 +38,9 @@ class Master
 
   def start_service
     while (session = @server.accept)
+      require 'deep_clone'
+      old_session = DeepClone.clone(session)
+
       Thread.start do
         peeraddr = session.peeraddr[2]
         puts "log: Connection from #{peeraddr} at #{session.peeraddr[1]}"
@@ -52,7 +56,18 @@ class Master
           session.puts "request accepted, wait for tests\n"
           test_credibility(peeraddr,$1)
         else
-          # TODO if master delegate to slave
+          delegatee_ip, delegatee_rPort = @server_list[1..-1].sample.split(":")
+          p "INDELEGATION"
+          p delegatee_ip, delegatee_rPort
+          old_session = session.clone
+          delegate_session = TCPSocket.new(delegatee_ip, delegatee_rPort.to_i)
+          delegate_session.puts(input)
+          answer = delegate_session.gets
+          p "ANSWER IS #{answer}"
+          p old_session.peeraddr[2]
+          p old_session.peeraddr[1]
+          old_session.puts(answer)
+          p "ANSWER SENT"
           session.close
         end
       end
@@ -60,7 +75,7 @@ class Master
   end
 
   def monitor
-    while sleep(5+rand())
+    while sleep(10+rand())
       ping_threads = []
       new_server_list = []
       slaves_to_ping = @server_list[1..-1] # do not ping yourself
