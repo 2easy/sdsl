@@ -1,0 +1,66 @@
+class Slave
+  def initialize local_ip, local_rPort, server_binding, service_obj, server_list
+    @local_ip = local_ip
+    @local_rPort = local_rPort
+    @server = server_binding
+    @service_obj = service_obj
+    @server_list = server_list
+  end
+
+  def start_service_server
+    puts "log: Started service server at #{@local_ip}:#{@local_rPort}"
+
+    unless report_service_readiness!
+      puts "CRITICAL: not added to the network"
+      raise "Critical error, can't service"
+    end
+    puts "log: Service server at #{@local_ip}:#{@local_rPort} added to network!"
+  end
+
+  def get_server_list
+    begin
+      initSession = TCPSocket.new(master_ip, master_rPort)
+      initSession.puts "hello\n"
+      @server_list.replace(initSession.gets.split(" "))
+      initSession.close
+
+      puts "log: Aquaired server list: #{@server_list.to_s}"
+      return @server_list
+    rescue Exception => e
+      puts "log: Couldn't aquire server list - #{e}"
+      return nil
+    end
+  end
+
+  def start_service
+    while (session = @server.accept)
+      Thread.start do
+        peeraddr = session.peeraddr[2]
+        input = session.gets
+        puts "log: #{peeraddr}:#{session.peeraddr[1]} requesting: #{input}"
+
+        if input =~ /compute (.*)/
+          # puts @service_obj.compute($1)
+          session.puts @service_obj.compute($1)
+        else
+          session.puts "Can't handle this request, ask master at #{master_ip}:#{master_rPort}"
+        end
+        # finalize request
+        session.close
+      end
+    end
+  end
+
+  def master_ip; @server_list[0][0]; end
+  def master_rPort; @server_list[0][1]; end
+
+  def monitor
+    while sleep(5+rand())
+      reelect! unless get_server_list
+    end
+  end
+  def reelect!
+    @server_list.shift # delete old master
+    raise Mastered if master_ip == @local_ip
+  end
+end
