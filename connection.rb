@@ -34,7 +34,7 @@ class Connection
           Thread.new { @conn_handle_obj.start_service },
           Thread.new { @conn_handle_obj.monitor       }
         ]
-        join_the_network!
+        join_the_network! unless master?
         service_threads.each {|t| t.join}
       rescue Mastered => e
         become_the_master(e.message)
@@ -75,7 +75,7 @@ class Connection
     def become_the_master(msg)
       @master = true
       # if noone(or [nil, nil]) on the server list, ensure there is myself
-      @server_list = [@local_ip,@local_rPort] if @server_list.size == 1
+      @server_list = [[@local_ip,@local_rPort]] if @server_list.size == 1
       @conn_handle_obj = Master.new(@local_ip, @local_rPort, @server, @service_obj, @server_list)
       puts "log: Became master server: #{msg}"
     end
