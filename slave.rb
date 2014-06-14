@@ -9,7 +9,6 @@ class Slave
 
   def get_server_list
     begin
-      p master_ip, master_rPort
       initSession = TCPSocket.new(master_ip, master_rPort)
       initSession.puts "hello\n"
       @server_list.replace(initSession.gets.split(" "))
