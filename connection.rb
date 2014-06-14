@@ -50,32 +50,27 @@ class Connection
 
   private
     def join_the_network!
-      begin
-        raise Mastered, "no master specified" if master_ip.nil?
-        initSession = TCPSocket.new(master_ip, master_rPort)
-        initSession.puts "ready at #{@local_rPort}\n"
-        res = initSession.gets
-        if  /request accepted, wait for tests/ =~ res
-          puts "log: Request accepted, waiting for tests..."
-        end
-        initSession.close
+      raise Mastered, "no master specified" if master_ip.nil?
+      initSession = TCPSocket.new(master_ip, master_rPort)
+      initSession.puts "ready at #{@local_rPort}\n"
+      res = initSession.gets
+      if  /request accepted, wait for tests/ =~ res
+        puts "log: Request accepted, waiting for tests..."
+      end
+      initSession.close
 
-        sleep(3) # wait for entry tests
-        # TODO maybe that master server went down - ping it and try again (3 times then fail)
-        @server_list.replace(@conn_handle_obj.get_server_list)
-        unless @server_list.any? {|a| a.include?(@local_ip) }
-          raise "error: Rejected by master - not on the server list"
-        end
-        @server_list = [[@local_ip, @local_rPort]]
-        become_the_master
-        return
+      sleep(3) # wait for entry tests
+      # TODO maybe that master server went down - ping it and try again (3 times then fail)
+      @server_list.replace(@conn_handle_obj.get_server_list)
+      unless @server_list.any? {|a| a.include?(@local_ip) }
+        raise "error: Rejected by master - not on the server list"
       end
     end
 
     def become_the_master(msg)
       @master = true
       # if noone(or [nil, nil]) on the server list, ensure there is myself
-      @server_list = [[@local_ip,@local_rPort]] if @server_list.size == 1
+      @server_list = [[@local_ip,@local_rPort].join(":")] if @server_list.size == 1
       @conn_handle_obj = Master.new(@local_ip, @local_rPort, @server, @service_obj, @server_list)
       puts "log: Became master server: #{msg}"
     end
