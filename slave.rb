@@ -9,6 +9,7 @@ class Slave
 
   def get_server_list
     begin
+      p master_ip, master_rPort
       initSession = TCPSocket.new(master_ip, master_rPort)
       initSession.puts "hello\n"
       @server_list.replace(initSession.gets.split(" "))
@@ -33,6 +34,7 @@ class Slave
           puts @service_obj.compute($1)
           session.puts @service_obj.compute($1)
         else
+          p @server_list
           session.puts "Can't handle this request, ask master at #{master_ip}:#{master_rPort}"
         end
         # finalize request
@@ -41,8 +43,8 @@ class Slave
     end
   end
 
-  def master_ip; @server_list[0][0]; end
-  def master_rPort; @server_list[0][1]; end
+  def master_ip; @server_list[0].split(":")[0]; end
+  def master_rPort; @server_list[0].split(":")[1]; end
 
   def monitor
     while sleep(5+rand())

@@ -14,7 +14,7 @@ class Connection
   def initialize service_obj, m_ip = nil, m_rPort = nil, local_rPort = DEFAULT_RPORT
     @local_ip, @local_rPort = local_ip, local_rPort
     @service_obj     = service_obj
-    @server_list     = [[m_ip, m_rPort]]
+    @server_list     = [[m_ip, m_rPort].join(":")]
     # bind service server
     @server = TCPServer.new(local_rPort.nil? ? DEFAULT_RPORT : local_rPort)
     @conn_handle_obj = Slave.new(@local_ip, @local_rPort, @server, @service_obj, @server_list)
@@ -75,8 +75,8 @@ class Connection
       puts "log: Became master server: #{msg}"
     end
 
-    def master_ip; @server_list[0][0]; end
-    def master_rPort; @server_list[0][1]; end
+    def master_ip; @server_list[0].split(":")[0]; end
+    def master_rPort; @server_list[0].split(":")[1]; end
 
     def local_ip
       orig = Socket.do_not_reverse_lookup
