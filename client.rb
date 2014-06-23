@@ -46,7 +46,8 @@ class ClientConnection
         puts "log: Trying again"
         @remote_ip = @server_list[0].split(":")[0]
         @port = @server_list[0].split(":")[1]
-        # HERE SHOULD BE RETRY
+        #Retry
+		call_remote(function_name, args)
       else
         puts "log: Ran out of potential new masters"
       end
@@ -69,7 +70,7 @@ class ClientConnection
         @remote_ip, @port = @server_list[0].split(":")
       end
     rescue Exception => e
-      puts "log: Couldn't aquire server list - #{e}"
+      puts "log: Couldn't acquire server list - #{e}"
       return nil
     end
   end
